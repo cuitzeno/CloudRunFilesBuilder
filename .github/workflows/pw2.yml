@@ -13,6 +13,9 @@ on:
     - cron: "0 22 * * *"  # 北京时间早上 6 点
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-22.04
