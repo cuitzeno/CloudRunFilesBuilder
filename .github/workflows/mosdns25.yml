@@ -6,11 +6,11 @@
 # Blog: wkdaily.cpolar.cn
 #=================================================
 
-name: Build 24.10 MosDNS
+name: Build 25.12 MosDNS
 
 on:
   schedule:
-    - cron: "2 22 * * *"  # 北京时间早上 6 点02
+    - cron: "12 22 * * *"  # 北京时间早上 6 点12
   workflow_dispatch:
 
 jobs:
@@ -32,74 +32,51 @@ jobs:
 
       - name: Download latest mosdns files
         run: |
-          curl -LO $(curl -s https://api.github.com/repos/sbwml/luci-app-mosdns/releases/latest | grep -oP '"browser_download_url":\s*".*aarch64_cortex-a53-openwrt-24.10.tar.gz"' | cut -d '"' -f 4)
-          curl -LO $(curl -s https://api.github.com/repos/sbwml/luci-app-mosdns/releases/latest | grep -oP '"browser_download_url":\s*".*x86_64-openwrt-24.10.tar.gz"' | cut -d '"' -f 4)
-          tar --one-top-level=aarch64_cortex-a53-openwrt-24.10 -xvzf aarch64_cortex-a53-openwrt-24.10.tar.gz
-          tar --one-top-level=x86_64-openwrt-24.10 -xvzf x86_64-openwrt-24.10.tar.gz
+          
+          curl -LO $(curl -s https://api.github.com/repos/sbwml/luci-app-mosdns/releases/latest | grep -oP '"browser_download_url":\s*".*aarch64_generic-openwrt-25.12.tar.gz"' | cut -d '"' -f 4)
+          curl -LO $(curl -s https://api.github.com/repos/sbwml/luci-app-mosdns/releases/latest | grep -oP '"browser_download_url":\s*".*aarch64_cortex-a53-openwrt-25.12.tar.gz"' | cut -d '"' -f 4)
+          curl -LO $(curl -s https://api.github.com/repos/sbwml/luci-app-mosdns/releases/latest | grep -oP '"browser_download_url":\s*".*x86_64-openwrt-25.12.tar.gz"' | cut -d '"' -f 4)
+          
+          tar --one-top-level=aarch64_generic-openwrt-25.12 -xvzf aarch64_generic-openwrt-25.12.tar.gz
+          tar --one-top-level=aarch64_cortex-a53-openwrt-25.12 -xvzf aarch64_cortex-a53-openwrt-25.12.tar.gz
+          tar --one-top-level=x86_64-openwrt-25.12 -xvzf x86_64-openwrt-25.12.tar.gz
       - name: Organize files for aarch64_cortex-a53&x86_64
         run: |
-          mkdir mosdns_x86_64 mosdns_aarch64_cortex-a53
-          cp x86_64-openwrt-24.10/packages_ci/*.ipk mosdns_x86_64/
-          cp aarch64_cortex-a53-openwrt-24.10/packages_ci/*.ipk mosdns_aarch64_cortex-a53/
-          # 保存当前路径并进入目标目录
-          pushd "mosdns_x86_64" >/dev/null || exit 1
-          for file in *~*.ipk; do
-          [ -e "$file" ] || continue
-          # 构造新文件名，去除 ~ 字符
-          new_file="$(echo "$file" | tr -d '~')"
-          # 如果目标文件名已存在，则提示并跳过
-          if [ -e "$new_file" ]; then
-          echo "目标文件已存在，跳过: $new_file"
-          continue
-          fi
-          # 重命名文件
-          mv "$file" "$new_file"
-          echo "已重命名: $file -> $new_file"
-          done
-          popd >/dev/null
-          pushd "mosdns_aarch64_cortex-a53" >/dev/null || exit 1
-          for file in *~*.ipk; do
-          [ -e "$file" ] || continue
-          # 构造新文件名，去除 ~ 字符
-          new_file="$(echo "$file" | tr -d '~')"
-          # 如果目标文件名已存在，则提示并跳过
-          if [ -e "$new_file" ]; then
-          echo "目标文件已存在，跳过: $new_file"
-          continue
-          fi
-          # 重命名文件
-          mv "$file" "$new_file"
-          echo "已重命名: $file -> $new_file"
-          done
-          popd >/dev/null
+          mkdir mosdns_x86_64 mosdns_aarch64_cortex-a53 mosdns_aarch64_generic
+          cp x86_64-openwrt-25.12/packages_ci/*.apk mosdns_x86_64/
+          cp aarch64_cortex-a53-openwrt-25.12/packages_ci/*.apk mosdns_aarch64_cortex-a53/
+          cp aarch64_generic-openwrt-25.12/packages_ci/*.apk mosdns_aarch64_generic
           
       - name: Create install.sh scripts
         run: |
           cat <<EOF > mosdns_x86_64/install.sh
           #!/bin/sh
-          opkg update
+          apk update
           if [ $? -ne 0 ]; then
-              echo "update failed。"
+              echo "update failed"
               exit 1
           fi
-          opkg install *.ipk
+          apk add --allow-untrusted *.apk
           EOF
           chmod +x mosdns_x86_64/install.sh
           cp mosdns_x86_64/install.sh mosdns_aarch64_cortex-a53/install.sh
-          
+          cp mosdns_x86_64/install.sh mosdns_aarch64_generic/install.sh
+
       - name: Move mosdns directories to makeself
         run: |
           mv mosdns_x86_64 makeself/
           mv mosdns_aarch64_cortex-a53 makeself/
+          mv mosdns_aarch64_generic makeself/ 
       - name: Create self-extracting packages
         run: |
           cd makeself
-          ./makeself.sh mosdns_x86_64/ mosdns_${{ env.LATEST_TAG }}_x86_64.run "by github action" ./install.sh
-          ./makeself.sh mosdns_aarch64_cortex-a53/ mosdns_${{ env.LATEST_TAG }}_aarch64_cortex-a53.run "by github action" ./install.sh
+          ./makeself.sh mosdns_x86_64/ 25-mosdns_${{ env.LATEST_TAG }}_x86_64.run "by github action" ./install.sh
+          ./makeself.sh mosdns_aarch64_cortex-a53/ 25-mosdns_${{ env.LATEST_TAG }}_aarch64_cortex-a53.run "by github action" ./install.sh
+          ./makeself.sh mosdns_aarch64_generic/ 25-mosdns_${{ env.LATEST_TAG }}_aarch64_generic.run "by github action" ./install.sh
           
       - name: Check file sizes
         run: |
-          ls -lh makeself/mosdns_*.run
+          ls -lh makeself/*.run
    
       - name: Set tag name
         id: vars
@@ -112,7 +89,7 @@ jobs:
         with:
           tag_name: ${{ env.tag_name }}
           name: "Daily Build - ${{ env.tag_name }}"
-          files: makeself/mosdns_*.run
+          files: makeself/*.run
           token: ${{ secrets.GITHUB_TOKEN }}
           body: |
              <p align="left">
