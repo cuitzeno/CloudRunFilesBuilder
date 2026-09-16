@@ -7,7 +7,7 @@
 #=================================================
 
 # 用户可利用此run单独升级最新版sing-box内核
-name: Build 24.10 sing-box core
+name: Build 25.12 sing-box core
 
 on:
   schedule:
@@ -34,17 +34,22 @@ jobs:
       - name: Clone makeself repository
         run: git clone https://github.com/megastep/makeself.git
 
-      - name: Download latest sing-box core ipk
+      - name: Download latest sing-box core apk
         run: |
-          mkdir -p x86 arm64
+          mkdir -p x86 arm64 aarch64_cortex-a53
           VERSION=${LATEST_TAG#v}
           # x86_64 
-          wget -O x86/sing-box_${VERSION}_openwrt_x86_64.ipk \
-            https://github.com/SagerNet/sing-box/releases/download/${LATEST_TAG}/sing-box_${VERSION}_openwrt_x86_64.ipk
+          wget -O x86/sing-box_${VERSION}_openwrt_x86_64.apk \
+            https://github.com/SagerNet/sing-box/releases/download/${LATEST_TAG}/sing-box_${VERSION}_openwrt_x86_64.apk
 
-          # arm64
-          wget -O arm64/sing-box_${VERSION}_openwrt_aarch64_generic.ipk \
-            https://github.com/SagerNet/sing-box/releases/download/${LATEST_TAG}/sing-box_${VERSION}_openwrt_aarch64_generic.ipk
+          # arm64-generic
+          wget -O arm64/sing-box_${VERSION}_openwrt_aarch64_generic.apk \
+            https://github.com/SagerNet/sing-box/releases/download/${LATEST_TAG}/sing-box_${VERSION}_openwrt_aarch64_generic.apk
+          
+          # aarch64_cortex-a53
+          wget -O aarch64_cortex-a53/sing-box_${VERSION}_openwrt_aarch64_cortex-a53.apk \
+            https://github.com/SagerNet/sing-box/releases/download/${LATEST_TAG}/sing-box_${VERSION}_openwrt_aarch64_cortex-a53.apk
+
 
 
 
@@ -52,31 +57,34 @@ jobs:
         run: |
           cat <<EOF > x86/install.sh
           #!/bin/sh
-          opkg update
+          apk update
           if [ $? -ne 0 ]; then
               echo "update failed。"
               exit 1
           fi
-          opkg install *.ipk
+          apk add --allow-untrusted *.apk
           echo "sing-box core has been updated to ${LATEST_TAG}"
           EOF
           chmod +x x86/install.sh
           cp x86/install.sh arm64/install.sh
+          cp x86/install.sh aarch64_cortex-a53/install.sh
 
       - name: Move directories to makeself
         run: |
           mv x86 makeself/
           mv arm64 makeself/
+          mv aarch64_cortex-a53 makeself/
 
       - name: Create self-extracting packages
         run: |
           cd makeself
-          ./makeself.sh x86/ sing-box_${LATEST_TAG}_x86_64.run "by github action" ./install.sh
-          ./makeself.sh arm64/ sing-box_${LATEST_TAG}_aarch64_generic.run "by github action" ./install.sh
+          ./makeself.sh x86/ 25-sing-box_${LATEST_TAG}_x86_64.run "by github action" ./install.sh
+          ./makeself.sh arm64/ 25-sing-box_${LATEST_TAG}_aarch64_generic.run "by github action" ./install.sh
+          ./makeself.sh aarch64_cortex-a53/ 25-sing-box_${LATEST_TAG}_aarch64_cortex-a53.run "by github action" ./install.sh
 
       - name: Check file sizes
         run: |
-          ls -lh makeself/sing-box_*.run
+          ls -lh makeself/*.run
 
       - name: Preparing release name
         run: |
